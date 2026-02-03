@@ -1,25 +1,27 @@
-class Logger {
-    static getTimestamp() {
-        return new Date().toISOString();
-    }
+const winston = require('winston');
 
-    static info(message, ...args) {
-        console.log(`[${this.getTimestamp()}] [INFO] ${message}`, ...args);
-    }
+const logger = winston.createLogger({
+    level: process.env.LOG_LEVEL || 'info',
+    format: winston.format.combine(
+        winston.format.timestamp(),
+        winston.format.json()
+    ),
+    transports: [
+        new winston.transports.Console({
+            format: winston.format.combine(
+                winston.format.colorize(),
+                winston.format.simple()
+            ),
+        }),
+        new winston.transports.File({ filename: 'logs/error.log', level: 'error' }),
+        new winston.transports.File({ filename: 'logs/combined.log' }),
+    ],
+});
 
-    static warn(message, ...args) {
-        console.warn(`[${this.getTimestamp()}] [WARN] ${message}`, ...args);
-    }
+// Helper for security events
+logger.security = (event, context) => {
+    logger.warn(`[SECURITY] ${event}`, context);
+};
 
-    static error(message, ...args) {
-        console.error(`[${this.getTimestamp()}] [ERROR] ${message}`, ...args);
-    }
+module.exports = logger;
 
-    static debug(message, ...args) {
-        if (process.env.NODE_ENV === 'development') {
-            console.debug(`[${this.getTimestamp()}] [DEBUG] ${message}`, ...args);
-        }
-    }
-}
-
-module.exports = Logger;

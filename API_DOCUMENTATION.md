@@ -14,11 +14,19 @@ Most endpoints require authentication via JWT token stored in HTTP-only cookie. 
 
 ### Cookie Details
 
-- **Name**: `jwt`
-- **Type**: HTTP-only
-- **SameSite**: Strict
-- **Secure**: true (in production)
-- **Expiration**: 24 hours
+Users receive two cookies upon authentication:
+
+- **jwt**:
+  - **Type**: Access Token (short-lived, e.g., 15m)
+  - **HTTP-only**: Yes
+  - **SameSite**: Strict
+  - **Secure**: Yes (production)
+- **refreshToken**:
+  - **Type**: Refresh Token (long-lived, e.g., 7d)
+  - **HTTP-only**: Yes
+  - **SameSite**: Strict
+  - **Secure**: Yes (production)
+  - **Path**: `/api/auth/refresh-token` (restricted boundary)
 
 ---
 
@@ -171,11 +179,11 @@ Clear authentication token.
 
 ### Refresh Token
 
-Refresh JWT token.
+Refresh the Access Token using the Refresh Token cookie. This endpoint implements **token rotation**, meaning a new refresh token is issued and the old one is invalidated.
 
-**Endpoint**: `POST /api/auth/refresh`
+**Endpoint**: `POST /api/auth/refresh-token`
 
-**Access**: Protected
+**Access**: Public (uses `refreshToken` cookie)
 
 **Success Response** (200):
 
@@ -193,6 +201,10 @@ Refresh JWT token.
   }
 }
 ```
+
+**Error Responses**:
+
+- `401`: Refresh token missing, expired, or invalid.
 
 ---
 
@@ -722,6 +734,10 @@ All errors follow this structure:
 
 **Note**: `errors` field is optional and only included for validation errors.
 
+**Development vs Production**:
+- In `NODE_ENV=development`, error responses include a `stack` field for debugging.
+- In other environments (test/production), stack traces are not included in API responses.
+
 ---
 
 ## Common Status Codes
@@ -741,11 +757,58 @@ All errors follow this structure:
 
 ## Security Features
 
-1. **Password Hashing**: bcrypt with strength 12
-2. **JWT Tokens**: Stored in HTTP-only cookies
-3. **Rate Limiting**: 100 requests per 15 minutes per IP
-4. **NoSQL Injection Prevention**: Input sanitization
-5. **XSS Prevention**: Input escaping and validation
-6. **CORS**: Configured for specific origins
-7. **Helmet**: Security headers
-8. **Access Control**: Role-based and ownership-based
+1. **Password Hashing**: bcrypt with strength 12.
+2. **Refresh Token Rotation**: Short-lived access tokens and rotated refresh tokens stored in DB.
+3. **Session Invalidation**: Server-side session/token destruction on logout.
+4. **JWT Tokens**: Stored in HTTP-only, Secure, SameSite: Strict cookies.
+5. **Rate Limiting**:
+   - General: 100 requests / 15 mins.
+   - Auth: 5 failed attempts / 15 mins.
+6. **NoSQL Injection Prevention**: Input sanitization via `express-mongo-sanitize`.
+7. **XSS Prevention**: Input escaping and strict CSP.
+8. **Security Headers**: Strict Helmet configuration (HSTS, CSP, Frameguard, etc.).
+9. **Transport Security**: HTTPS support with automatic HTTP to HTTPS redirection.
+10. **Secure Logging**: Winston-based structured logging for security events with log rotation.
+11. **Automated Tests**: Unit + integration tests with Jest and Supertest, including security-related cases.
+12. **Coverage Reporting**: Jest coverage reports (`npm run test:coverage`) output to `coverage/`.
+13. **CI Pipeline**: GitHub Actions runs tests and coverage on push/PR (`.github/workflows/ci.yml`).
+14. **Dependency Scanning**: OWASP Dependency Check in CI with failure on high severity vulnerabilities.
+
+---
+
+## Testing and CI
+
+### Local Test Commands
+
+```bash
+npm test
+npm run test:unit
+npm run test:integration
+npm run test:coverage
+```
+
+### Coverage Reports
+
+Coverage output is generated in the `coverage/` directory (text + lcov).
+
+### CI (GitHub Actions)
+
+Workflow file: `.github/workflows/ci.yml`
+
+Runs:
+- `npm ci`
+- `npm run test:coverage`
+- OWASP Dependency Check (fails on high severity vulnerabilities)
+
+---
+
+## Postman Collection
+
+A ready-to-run Postman collection is available at:
+
+```
+postman/security-labs.postman_collection.json
+```
+
+It includes requests for registration/login, validation failures, secured endpoints, role checks,
+token refresh/rotation, and user data isolation tests.

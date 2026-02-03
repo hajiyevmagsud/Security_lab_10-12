@@ -1,0 +1,503 @@
+{
+  "info": {
+    "name": "Security Labs Backend",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000" },
+    { "key": "baseUrlAlt", "value": "http://127.0.0.1:3000" },
+    { "key": "password", "value": "Str0ng!Pass1" },
+    { "key": "adminEmail", "value": "admin@example.com" },
+    { "key": "adminPassword", "value": "Admin@123456" },
+    { "key": "userAEmail", "value": "" },
+    { "key": "userAUsername", "value": "" },
+    { "key": "userBEmail", "value": "" },
+    { "key": "userBUsername", "value": "" },
+    { "key": "noteId", "value": "" },
+    { "key": "userAAccessToken", "value": "" },
+    { "key": "userARefreshToken", "value": "" },
+    { "key": "userARefreshTokenOld", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Health - Security Headers",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/health"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status 200', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "pm.test('security headers present (where applicable)', function () {",
+              "  pm.expect(pm.response.headers.has('x-content-type-options')).to.be.true;",
+              "  pm.expect(pm.response.headers.has('x-frame-options')).to.be.true;",
+              "  pm.expect(pm.response.headers.has('content-security-policy')).to.be.true;",
+              "  pm.expect(pm.response.headers.has('referrer-policy')).to.be.true;",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Auth - Register User A (localhost)",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const suffix = Date.now();",
+              "pm.collectionVariables.set('userAEmail', `usera+${suffix}@example.com`);",
+              "pm.collectionVariables.set('userAUsername', `usera${suffix}`);"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status 201', function () {",
+              "  pm.response.to.have.status(201);",
+              "});",
+              "const cookies = pm.response.headers.getAll('set-cookie') || [];",
+              "let accessToken = '';",
+              "let refreshToken = '';",
+              "cookies.forEach((c) => {",
+              "  if (c.startsWith('jwt=')) accessToken = c.split(';')[0].split('=')[1];",
+              "  if (c.startsWith('refreshToken=')) refreshToken = c.split(';')[0].split('=')[1];",
+              "});",
+              "if (accessToken) pm.collectionVariables.set('userAAccessToken', accessToken);",
+              "if (refreshToken) pm.collectionVariables.set('userARefreshToken', refreshToken);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/auth/register",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{userAEmail}}\",\n  \"username\": \"{{userAUsername}}\",\n  \"password\": \"{{password}}\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Auth - Register Invalid Input",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/auth/register",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"bad-email\",\n  \"username\": \"ab\",\n  \"password\": \"weakpass\"\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status 400', function () {",
+              "  pm.response.to.have.status(400);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Auth - Login User A (localhost)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/auth/login",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{userAEmail}}\",\n  \"password\": \"{{password}}\"\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status 200', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "const cookies = pm.response.headers.getAll('set-cookie') || [];",
+              "let accessToken = '';",
+              "let refreshToken = '';",
+              "cookies.forEach((c) => {",
+              "  if (c.startsWith('jwt=')) accessToken = c.split(';')[0].split('=')[1];",
+              "  if (c.startsWith('refreshToken=')) refreshToken = c.split(';')[0].split('=')[1];",
+              "});",
+              "if (accessToken) pm.collectionVariables.set('userAAccessToken', accessToken);",
+              "if (refreshToken) pm.collectionVariables.set('userARefreshToken', refreshToken);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Auth - Login User A (wrong password)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/auth/login",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{userAEmail}}\",\n  \"password\": \"WrongPass1!\"\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status 401', function () {",
+              "  pm.response.to.have.status(401);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Auth - Get Profile (User A)",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/users/profile"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status 200', function () {",
+              "  pm.response.to.have.status(200);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Auth - Logout (User A)",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/api/auth/logout"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status 200', function () {",
+              "  pm.response.to.have.status(200);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Auth - Refresh Token (User A)",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/api/auth/refresh-token"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.collectionVariables.set('userARefreshTokenOld', pm.collectionVariables.get('userARefreshToken') || '');",
+              "const cookies = pm.response.headers.getAll('set-cookie') || [];",
+              "let refreshToken = '';",
+              "cookies.forEach((c) => {",
+              "  if (c.startsWith('refreshToken=')) refreshToken = c.split(';')[0].split('=')[1];",
+              "});",
+              "if (refreshToken) pm.collectionVariables.set('userARefreshToken', refreshToken);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Auth - Refresh Token reuse (should fail)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Cookie",
+            "value": "refreshToken={{userARefreshTokenOld}}"
+          }
+        ],
+        "url": "{{baseUrl}}/api/auth/refresh-token"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status 401', function () {",
+              "  pm.response.to.have.status(401);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Auth - Access without login (Notes)",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrlAlt}}/api/notes"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status 401', function () {",
+              "  pm.response.to.have.status(401);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Auth - Register User B (127.0.0.1)",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const suffix = Date.now();",
+              "pm.collectionVariables.set('userBEmail', `userb+${suffix}@example.com`);",
+              "pm.collectionVariables.set('userBUsername', `userb${suffix}`);"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status 201', function () {",
+              "  pm.response.to.have.status(201);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrlAlt}}/api/auth/register",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{userBEmail}}\",\n  \"username\": \"{{userBUsername}}\",\n  \"password\": \"{{password}}\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Notes - Create (User A)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/notes",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Note A\",\n  \"content\": \"Secret content\"\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status 201', function () {",
+              "  pm.response.to.have.status(201);",
+              "});",
+              "const json = pm.response.json();",
+              "if (json && json.data && json.data.id) {",
+              "  pm.collectionVariables.set('noteId', json.data.id);",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Notes - Get (User A)",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/notes/{{noteId}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status 200', function () {",
+              "  pm.response.to.have.status(200);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Notes - Get (User B, should fail)",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrlAlt}}/api/notes/{{noteId}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status 404', function () {",
+              "  pm.response.to.have.status(404);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Notes - Update (User B, should fail)",
+      "request": {
+        "method": "PUT",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrlAlt}}/api/notes/{{noteId}}",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Hacked\"\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status 404', function () {",
+              "  pm.response.to.have.status(404);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Notes - Delete (User B, should fail)",
+      "request": {
+        "method": "DELETE",
+        "url": "{{baseUrlAlt}}/api/notes/{{noteId}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status 404', function () {",
+              "  pm.response.to.have.status(404);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin - Login",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/auth/login",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\"\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status 200', function () {",
+              "  pm.response.to.have.status(200);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin - Get All Users",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/users"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status 200', function () {",
+              "  pm.response.to.have.status(200);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin - Get All Notes",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/notes/admin/all"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status 200', function () {",
+              "  pm.response.to.have.status(200);",
+              "});"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
