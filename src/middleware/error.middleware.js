@@ -5,11 +5,22 @@ const logger = require('../utils/logger');
 const errorHandler = (err, req, res, next) => {
     let error = err;
 
-    logger.error(`Error: ${error.message}`, {
-        stack: error.stack,
+    const isDev = process.env.NODE_ENV === 'development';
+    let logMessage = `Error: ${error.message}`;
+    if (!isDev && error && error.code === 11000 && error.keyPattern && error.keyPattern.token) {
+        logMessage = 'Error: Duplicate refresh token';
+    }
+
+    const logPayload = {
         url: req.originalUrl,
         method: req.method,
-    });
+    };
+
+    if (isDev) {
+        logPayload.stack = error.stack;
+    }
+
+    logger.error(logMessage, logPayload);
 
     if (!(error instanceof ApiError)) {
         if (error.name === 'ValidationError') {

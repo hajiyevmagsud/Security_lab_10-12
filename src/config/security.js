@@ -9,8 +9,18 @@ const getHelmetConfig = () => {
             directives: {
                 defaultSrc: ["'self'"],
                 styleSrc: ["'self'", "'unsafe-inline'"],
+                scriptSrc: ["'self'"],
+                imgSrc: ["'self'", "data:"],
+                connectSrc: ["'self'"],
+                fontSrc: ["'self'"],
+                objectSrc: ["'none'"],
+                mediaSrc: ["'self'"],
+                frameSrc: ["'none'"],
             },
         },
+        xContentTypeOptions: true, // X-Content-Type-Options: nosniff
+        xFrameOptions: { action: 'deny' }, // X-Frame-Options: DENY
+        referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
         hsts: {
             maxAge: 31536000,
             includeSubDomains: true,
@@ -21,11 +31,25 @@ const getHelmetConfig = () => {
 
 const getRateLimiter = () => {
     return rateLimit({
-        windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000', 10),
-        max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '100', 10),
+        windowMs: 15 * 60 * 1000, // 15 minutes
+        max: 100, // limit each IP to 100 requests per windowMs
         message: {
             success: false,
             message: 'Too many requests from this IP, please try again later.',
+        },
+        standardHeaders: true,
+        legacyHeaders: false,
+    });
+};
+
+const getAuthRateLimiter = () => {
+    return rateLimit({
+        windowMs: 15 * 60 * 1000, // 15 minutes
+        max: 5, // limit each IP to 5 failed login attempts per windowMs
+        skipSuccessfulRequests: true,
+        message: {
+            success: false,
+            message: 'Too many failed login attempts, please try again after 15 minutes.',
         },
         standardHeaders: true,
         legacyHeaders: false,
@@ -52,6 +76,9 @@ const getMongoSanitize = () => {
 module.exports = {
     getHelmetConfig,
     getRateLimiter,
+    getAuthRateLimiter,
     getCorsConfig,
     getMongoSanitize,
 };
+
+

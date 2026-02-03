@@ -9,20 +9,24 @@ This project implements a production-ready backend covering:
 - **Lab 10**: HTTP request/response handling, validation, proper status codes
 - **Lab 11**: JWT-based authentication with HTTP-only cookies
 - **Lab 12**: Role-based access control and secure CRUD operations
+- **Lab 13**: Advanced session/token security, security headers, secure logging, and transport security
 
 ## 🚀 Features
 
 ### Security
 
-- ✅ JWT authentication with HTTP-only cookies
+- ✅ JWT authentication with Access/Refresh token rotation
+- ✅ Session invalidation on logout
 - ✅ Password hashing with bcrypt (strength 12)
 - ✅ Role-based access control (RBAC)
 - ✅ Input validation and sanitization
 - ✅ NoSQL injection prevention
-- ✅ XSS protection
-- ✅ Rate limiting (100 req/15min)
-- ✅ Helmet security headers
+- ✅ XSS protection & Strict CSP
+- ✅ Rate limiting (General & Auth-specific)
+- ✅ Enhanced Helmet security headers (HSTS, Frameguard, etc.)
 - ✅ CORS configuration
+- ✅ Structured Logging (Winston)
+- ✅ HTTPS support and automatic redirection
 
 ### HTTP Fundamentals (Lab 10)
 
@@ -62,6 +66,7 @@ This project implements a production-ready backend covering:
 - **Validation**: express-validator
 - **File Upload**: multer
 - **Security**: helmet, express-rate-limit, express-mongo-sanitize
+- **Logging**: winston
 
 ## 📁 Project Structure
 
@@ -142,7 +147,6 @@ security-labs-backend/
    ```
 
    This creates:
-
    - Admin user: `admin@example.com` / `Admin@123456`
    - Test user: `user@example.com` / `User@123456`
 
